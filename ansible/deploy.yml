@@ -16,10 +16,8 @@
         par {{ lookup("env", "DRONE_COMMIT_AUTHOR_NAME") }}
         dans {{ lookup("env", "DRONE_BUILD_LINK") }}
 
-# en cours:
-#  - name: Executer la backup de la setup actuelle
-#    include_tasks: backup_execute.yml
-#    when: home is defined
+  - include: backup.yml
+    when: home is defined and lookup('env', 'RESTIC_PASSWORD')
 
   - name: Déploiement du pod docker-compose
     include_role: name=yourlabs.compose

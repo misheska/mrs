@@ -9,6 +9,7 @@ services:
     logging:
       driver: journald
     environment:
+    - ALLOWED_HOSTS
     - DB_ENGINE=django.db.backends.postgresql
     - DB_HOST=postgres
     - DB_USER=django

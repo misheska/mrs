@@ -15,4 +15,4 @@ services:
     volumes:
     - ./postgres/data:/var/lib/postgresql/data
     - ./postgres/run:/var/run/postgresql
-    - ./dump:/dump
+    - ./dump:$POSTGRES_BACKUP
