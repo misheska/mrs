@@ -24,8 +24,12 @@
     export RESTIC_REPOSITORY={{ lookup('env', 'RESTIC_REPOSITORY') or home + '/restic' }}
     test -d $RESTIC_REPOSITORY || restic init
 
+- register: stat_backup
+  stat:
+    path: '{{ home }}/backup.sh'
+
 - name: Executer le script de backup
-  when: "'created restic repo' not in restic_init['stdout']"
+  when: stat_backup.stat.exists
   shell: '{{ home }}/backup.sh'
 
 - name: Installer le script de backup
@@ -33,6 +37,21 @@
   template:
     src: backup.sh
     dest: '{{ home }}/backup.sh'
+    mode: 0700
+
+- name: Installer le script de politique de retention
+  when: lookup('env', 'RESTIC_PASSWORD')
+  template:
+    src: prune.sh
+    dest: '{{ home }}/prune.sh'
+    mode: 0700
+
+- name: Installer le script de restoration de backup
+  when: lookup('env', 'RESTIC_PASSWORD')
+  template:
+    src: restore.sh
+    dest: '{{ home }}/restore.sh'
+    mode: 0700
 
 - name: Installer le cron de backup
   when: lookup('env', 'RESTIC_PASSWORD')
@@ -42,3 +61,12 @@
     cmd: '{{ home }}/backup.sh'
     chdir: '{{ home }}'
     oncalendar: '*-*-* 23:00:00'
+
+- name: Installer le cron de politique de retention
+  when: lookup('env', 'RESTIC_PASSWORD')
+  include_role: name=yourlabs.timer
+  vars:
+    name: '{{ home.split("/")[-1] }}-prune'
+    cmd: '{{ home }}/prune.sh'
+    chdir: '{{ home }}'
+    oncalendar: '*-*-* 04:00:00'
