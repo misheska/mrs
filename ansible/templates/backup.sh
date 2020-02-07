@@ -1,5 +1,5 @@
-#!/bin/bash
-if [ -z "$BACKUP_FORCE" ]; then
+#!/bin/bash -eux
+if [ -z "${BACKUP_FORCE-}" ]; then
   echo This script is not safe to run multiple instances at the same time
   echo Starting through systemctl and forwarding journalctl
   set -eux

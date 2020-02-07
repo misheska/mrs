@@ -61,6 +61,8 @@
     cmd: '{{ home }}/backup.sh'
     chdir: '{{ home }}'
     oncalendar: '*-*-* 23:00:00'
+    env:
+      BACKUP_FORCE: 1
 
 - name: Installer le cron de politique de retention
   when: lookup('env', 'RESTIC_PASSWORD')
