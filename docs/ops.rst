@@ -8,8 +8,61 @@ pour les deploiements de dev ephemeres faits a partir des branches.
 Ce chapitre a donc vocation d'expliquer tous les types de déploiements
 possibles ainsi que les opérations courantes.
 
-Architecture compose
+Architecture systeme
 ====================
+
+Utilisateurs
+------------
+
+Il est consideré que vous avez un accès avec le meme nom d'utilisateur, sudo
+sans mot de passe et une authentification SSH par clef, vous pouvez vous en
+assurrer avec la commande suivante que j'utilise::
+
+    bigsudo yourlabs.ssh @host
+
+Partitions
+----------
+
+/home
+    Les données persistentes des utilisateurs comme des instances MRS deployées
+    sur le serveur.
+
+/home/nomdinstance
+    Données persistentes d'une instance de MRS, exemple:
+    ``/home/mrs-production:`` pour la prod sur le serveur de prod
+
+/var/lib/docker
+    Docker est vraiment lent si il ne peut pas exploiter le CoW, mounter une
+    partition btrfs sur ce dossier le rend effectivement plus rapide.
+
+/mnt/backup
+    Sur le serveur de prod, un espace sur un autre RAID pour stocker les
+    backups.
+
+Services
+--------
+
+Les systemes du load balancer traefik pour exposer les deploiements divers de
+MRS. Exemple de commande qui installe traefik (ainsi que docker et un
+firewall)::
+
+    bigsudo yourlabs.traefik @host
+
+Vous avez accès aux instances de NetData et de Prometheus pour acceder au
+monitoring en passant par netdata.fqdn ou prometheus.fqdn (remplacez fqdn par
+le nom de domaine complet du serveur). Exemple de commande pour installer
+netdata et prometheus::
+
+    bigsudo yourlabs.netdata @host
+
+Notez que NetData est configuré pour alerter l'equipe via un webhook Slack
+(ChatOps).
+
+MRS
+---
+
+Compose
+'''''''
 
 Docker-compose prefixe les containers et volume d'une installation a partir
 d'un prefixe. Soit ce prefixe est l'argument passé a compose avec
@@ -30,6 +83,37 @@ fusionner ``docker-compose.traefik.yml``.
 
 Enfin, utile pour les envs de dev et staging, on peut aussi fusionner
 ``docker-compose.maildev.yml`` pour avoir un serveur de mail de test.
+
+Build
+'''''
+
+Le Dockerfile de MRS construit une image de container avec webpack pour
+compiler le front et uWSGI pour servir le code Python.
+
+Persistence
+'''''''''''
+
+Les données sont persistées dans un dossier dans ``/home`` tels que
+``/home/mrs-production`` ou ``/home/mrs-staging``. On y trouve:
+
+- ``./backup.sh``: le script pour faire une backup,
+- ``./restore.sh``: le script pour restaurer une backup,
+- ``./prune.sh``: le script pour appliquer la politique de retention de backup,
+- ``./log``: logs django, inclus dans les backups,
+- ``./postgres``: les données de postgres
+- ``./spooler``: dossier de background jobs uWSGI,
+- ``./restic``: dossier qui contient le repo de backups, sur le serveur de
+  production c'est dans ``/mnt/backup/mrs-production/restic`` pour eviter de
+  stimuler une copie de la DB sur les disques de runtime.
+
+Cron
+''''
+
+systemd.timer est utilisé en guise de cron, MRS en deploie pour chaque instance
+persistente (voir section suivante "Compose"):
+
+- nomdinstance-backup: execute une backup de nuit
+- nomdinstance-prune: execute la politique de retention de backups
 
 Operations courantes
 ====================
