@@ -15,12 +15,13 @@ if [ -z "${1-}" ]; then
 fi
 restic restore $1 --target /
 docker-compose down --remove-orphans -v
+mv {{ home }}/postgres/data {{ home }}/postgres/backup-data-$(date +%Y%m%d-%H:%M:%S)
 docker-compose up -d postgres
 until test -S {{ home }}/postgres/run/.s.PGSQL.5432; do
     sleep 1
 done
 sleep 3 # ugly wait until db starts up, socket waiting aint enough
-docker exec {{ home.split("/")[-1] }}-postgres psql -d mrs -U django -f /dump/data.dump
+docker-compose exec -T postgres psql -d mrs -U django -f /dump/data.dump
 docker-compose up -d
 retcode=$?
 docker-compose logs -f &

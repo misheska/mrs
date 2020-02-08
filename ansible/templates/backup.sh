@@ -31,7 +31,7 @@ until test -S {{ home }}/postgres/run/.s.PGSQL.5432; do
 done
 sleep 3 # ugly wait until db starts up, socket waiting aint enough
 
-docker-compose exec postgres pg_dumpall -U django -c -f /dump/data.dump
+docker-compose exec -T postgres pg_dumpall -U django -c -f /dump/data.dump
 
 docker-compose logs &> log/docker.log || echo "Couldn't get logs from instance"
 
@@ -41,4 +41,4 @@ restic backup $backup docker-compose.yml log mrsattachments {{ lookup('env', 'PO
 lftp -c 'set ssl:check-hostname false;connect {{ lookup("env", "LFTP_DSN") }}; mkdir -p {{ home.split("/")[-1] }}; mirror -Rv {{ home }}/restic {{ home.split("/")[-1] }}/restic'
 {% endif %}
 
-rm -rf postgres/data/data.dump
+docker-compose exec -T postgres rm -rf /dump/data.dump
