@@ -20,13 +20,17 @@ export RESTIC_REPOSITORY={{ lookup('env', 'RESTIC_REPOSITORY') or home + '/resti
 
 backup=""
 
-getcommit="docker-compose exec django env | grep -o 'GIT_COMMIT=[a-z0-9]*'"
-if $getcommit; then
-  export $($getcommit)
+if docker-compose exec -T django env | grep GIT_COMMIT; then
+  export $(docker-compose exec -T django env | grep -o 'GIT_COMMIT=[a-z0-9]*')
   backup="$backup --tag $GIT_COMMIT"
 fi
 
-docker-compose start postgres
+docker-compose up -d postgres
+until test -S {{ home }}/postgres/run/.s.PGSQL.5432; do
+    sleep 1
+done
+sleep 3 # ugly wait until db starts up, socket waiting aint enough
+
 docker-compose exec postgres pg_dumpall -U django -c -f /dump/data.dump
 
 docker-compose logs &> log/docker.log || echo "Couldn't get logs from instance"
