@@ -30,10 +30,18 @@
         docker-compose exec -T django djcli chpasswd username=dev dev;
         {% endif %}
 
-# en cours:
-#  - name: Preparer la prochaine backup
-#    include_tasks: backup_prepare.yml
-#    when: home is defined
+  - name: Configuration des logrotates
+    dest: /etc/logrotate.d/mrs
+    content: |
+      /home/*/log/*.log {
+        daily
+        missingok
+        rotate 36
+        compress
+        notifempty
+        create 0640 1000 1000
+        sharedscripts
+      }
 
   - name: Execution du healthcheck
     include_tasks: check.yml
