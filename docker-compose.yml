@@ -22,6 +22,8 @@ services:
     - EMAIL_USE_SSL
     - EMAIL_USE_TLS
     - DEFAULT_FROM_EMAIL
+    - HOST
+    - PROTO
     - TEAM_EMAIL
     - SENTRY_AUTH_TOKEN
     - SENTRY_DSN
