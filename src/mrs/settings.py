@@ -63,6 +63,7 @@ else:
 CSRF_COOKIE_SECURE = SSL_CONTEXT
 SECURE_SSL_REDIRECT = SSL_CONTEXT
 SESSION_COOKIE_SECURE = SSL_CONTEXT
+CSRF_COOKIE_SAMESITE = 'Lax'
 CSP_UPGRADE_INSECURE_REQUESTS = SSL_CONTEXT
 
 MAINTENANCE_ENABLE = os.getenv('MAINTENANCE_ENABLE', False)
@@ -101,9 +102,15 @@ if not os.getenv('CI'):
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'csp.middleware.CSPMiddleware',
-    'security_headers.middleware.extra_security_headers_middleware',
-    'django_cookies_samesite.middleware.CookiesSameSite',
+]
+
+if not DEBUG:
+    MIDDLEWARE += [
+        'csp.middleware.CSPMiddleware',
+        'security_headers.middleware.extra_security_headers_middleware',
+    ]
+
+MIDDLEWARE += [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
