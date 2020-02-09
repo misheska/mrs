@@ -6,7 +6,13 @@ automatisé, comme c'est le cas pour la production, staging, ecole, ainsi que
 pour les deploiements de dev ephemeres faits a partir des branches.
 
 Ce chapitre a donc vocation d'expliquer tous les types de déploiements
-possibles ainsi que les opérations courantes.
+possibles ainsi que les opérations courantes, plutot dans la pratique tel un
+"cookbook" qu'un document expliquant les concepts et les pourquois, sujet
+traité globallement dans un article sur l'`eXtreme DevOps et le hacking
+d'operations avec ansible/bigsudo/docker/compose
+<https://blog.yourlabs.org/posts/2020-02-08-bigsudo-extreme-devops-hacking-operations/>`_
+ainsi que la `distribution de roles Ansible yourlabs
+<https://galaxy.ansible.com/yourlabs/>`.
 
 Architecture systeme
 ====================
@@ -20,31 +26,39 @@ assurrer avec la commande suivante que j'utilise::
 
     bigsudo yourlabs.ssh @host
 
+Vous pouvez m'ajouter en root sur un serveur en recuperant ma clef ssh sur
+github.com/jpic.keys et m'ajouter en root si vous avez besoin d'aide ou alors
+ajoutez moi avec la commande suivante::
+
+    bigsudo yourlabs.ssh adduser usergroups=sudo username=jpic
+
 Partitions
 ----------
 
-/home
+``/home``
     Les données persistentes des utilisateurs comme des instances MRS deployées
     sur le serveur.
 
-/home/nomdinstance
+``/home/nomdinstance``
     Données persistentes d'une instance de MRS, exemple:
     ``/home/mrs-production:`` pour la prod sur le serveur de prod
 
-/var/lib/docker
+``/var/lib/docker``
     Docker est vraiment lent si il ne peut pas exploiter le CoW, mounter une
     partition btrfs sur ce dossier le rend effectivement plus rapide.
 
-/mnt/backup
+``/mnt/backup``
     Sur le serveur de prod, un espace sur un autre RAID pour stocker les
     backups.
 
 Services
 --------
 
-Les systemes du load balancer traefik pour exposer les deploiements divers de
-MRS. Exemple de commande qui installe traefik (ainsi que docker et un
-firewall)::
+Les docker-composes contiennent les annotations necessaires pour que Traefik
+saches generer les certificats HTTPS et router les domaines vers le container
+Django/uWSGI.
+
+Exemple de commande qui installe traefik (ainsi que docker et un firewall)::
 
     bigsudo yourlabs.traefik @host
 
@@ -56,18 +70,18 @@ netdata et prometheus::
     bigsudo yourlabs.netdata @host
 
 Notez que NetData est configuré pour alerter l'equipe via un webhook Slack
-(ChatOps).
+(ChatOps) dans ``/etc/ansible/facts.d/yourlabs_netdata.fact``.
 
-MRS
----
+Architecture MRS
+================
 
 Compose
-'''''''
+-------
 
 Docker-compose prefixe les containers et volume d'une installation a partir
-d'un prefixe. Soit ce prefixe est l'argument passé a compose avec
-``--project-name``, soit c'est le nom du dossier qui contient le fichier
-compose.
+d'un prefixe. Pour docker-compose, les containers et volumes d'une stack
+partagent prefixe soit passé a compose avec ``--project-name``, soit c'est le
+nom du dossier qui contient le fichier compose (comportement par defaut).
 
 La difference entre un deploiement persistent et un deploiement de dev reside
 principalement la:
@@ -75,7 +89,15 @@ principalement la:
 - pour un env persistent (prod, staging ...), on passe un
   ``home=/home/mrs-production`` et on fusionne ``docker-compose.yml`` avec
   ``docker-compose.persist.yml``,
-- pour un env ephèmere (branche dev), on passe ``project=test-$BRANCHNAME``
+- pour un env ephèmere (branche dev), on passe ``project=test-$BRANCHNAME``, et
+  ``yourlabs.compose`` garde automatiquement une version dans
+  ``~/.yourlabs.compose/test-$BRANCHNAME/docker-compose.yml`` en vue de gerer
+  l'instance plus tard.
+
+En plus, le deploiement ephemere se fait avec l'argument ``lifetime=604800`` ce
+qui cree un fichier ``~/.yourlabs.compose/test-$BRANCHNAME/removeat`` contenant
+la somme de l'argument et du timestamp. ``yourlabs.compose`` installe egalement
+un timer systemd pour effacer les vieux deploiements ephemeres.
 
 Dans tous les cas, si le serveur a un load-balancer fonctionnel (deployable
 avec ``bigsudo yourlabs.traefik`` ou manuellement), alors on veut aussi
@@ -84,14 +106,14 @@ fusionner ``docker-compose.traefik.yml``.
 Enfin, utile pour les envs de dev et staging, on peut aussi fusionner
 ``docker-compose.maildev.yml`` pour avoir un serveur de mail de test.
 
-Build
-'''''
+Docker
+------
 
 Le Dockerfile de MRS construit une image de container avec webpack pour
 compiler le front et uWSGI pour servir le code Python.
 
 Persistence
-'''''''''''
+-----------
 
 Les données sont persistées dans un dossier dans ``/home`` tels que
 ``/home/mrs-production`` ou ``/home/mrs-staging``. On y trouve:
@@ -107,7 +129,7 @@ Les données sont persistées dans un dossier dans ``/home`` tels que
   stimuler une copie de la DB sur les disques de runtime.
 
 Cron
-''''
+----
 
 systemd.timer est utilisé en guise de cron, MRS en deploie pour chaque instance
 persistente (voir section suivante "Compose"):
@@ -138,6 +160,13 @@ Après vous pouvez bien entendu le faire manuellement a l'ancienne, mais perso
 je trouve cette maniere plus rapide car elle encapsule des operations autrement
 repetitives.
 
+Envoyer un mail de test
+-----------------------
+
+Typiquement pour tester la configuration du serveur de mail::
+
+    docker-compose exec django mrs sendtestemail
+
 Copier les données de prod en staging
 -------------------------------------
 
@@ -151,18 +180,11 @@ Cette opération se passe en deux temps:
 
     ssh -A staging.mrs.beta.gouv.fr
 
-Envoyer un mail de test
------------------------
+Developpement
+=============
 
-Typiquement pour tester la configuration du serveur de mail::
-
-    docker-compose exec django mrs sendtestemail
-
-Exemples
-========
-
-Developpement local
--------------------
+Local
+-----
 
 Pour executer la meme operation de deploiement et d'installation de prod en
 local, en vue de la bidouiller, sans le load-balancer.
@@ -228,3 +250,24 @@ objectif::
 
 ``compose=docker-compose.yml,docker-compose.persist.yml``
     Liste des fichiers compose a fusionner pour la configuration finale de ce deploiement
+
+Vagrant
+-------
+
+Vagrant necessite VirtualBox, c'est une alternative au developpement local qui
+permet d'avoir la meme version que centos sur les serveurs, et vous permet de
+tester sans ajouter des crons inutiles sur votre systeme local grace a
+l'isolation d'une machine virtuelle.
+
+Pour alleger le workflow de commandes, des raccourcis sont mis dans le script
+``./do`` a la racine du repo:
+
+- ``./do vagrant apply`` enchaine un destroy et un up
+- ``./do vagrant up`` fait un up et puis genere la config ssh dans ``./.vagrant-ssh``
+- ``./do vagrant bigsudo`` se substitue a ``bigsudo`` et passe
+  ``./.vagrant-ssh`` en argument ansible et vise bien la VM default
+
+Examples::
+
+    ./do vagrant bigsudo yourlabs.traefik -v
+    ./do vagrant bigsudo ansible/deploy.yml

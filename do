@@ -352,6 +352,48 @@ docker.shell() {
     docker exec -it mrs-$instance bash
 }
 
+# compose               Wrapper for docker-compose
+#                       Adds an extra command: ./do compose apply
+compose() {
+    if [ "$1" = "apply" ]; then
+        compose build
+        compose down
+        compose up -d
+        compose logs
+        compose ps
+        return
+    fi
+
+    docker-compose $@
+}
+
+# vagrant               Vagrant wrapper providing ssh-config into .vagrant
+#                       Adds apply sub command to chain destroy and up
+vagrant() {
+    export VAGRANT_IP=192.168.168.168
+
+    if [ "$1" = "apply" ]; then
+        vagrant destroy -f
+        vagrant up
+        return
+    fi
+
+    if [ "$1" = "bigsudo" ]; then
+        shift
+        if [ ! -f .vagrant-ssh ]; then
+            vagrant up
+        fi
+        bigsudo $@ --ssh-common-args="-F .vagrant-ssh" --inventory="default,"
+        return
+    fi
+
+    $(which vagrant) $@
+
+    if [ "$1" = "up" ]; then
+        $(which vagrant) ssh-config > .vagrant-ssh
+    fi
+}
+
 # waituntil             Wait for a statement until 150 tries elapsed
 waituntil() {
     set +x

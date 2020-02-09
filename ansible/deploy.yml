@@ -31,17 +31,18 @@
         {% endif %}
 
   - name: Configuration des logrotates
-    dest: /etc/logrotate.d/mrs
-    content: |
-      /home/*/log/*.log {
-        daily
-        missingok
-        rotate 36
-        compress
-        notifempty
-        create 0640 1000 1000
-        sharedscripts
-      }
+    copy:
+      dest: /etc/logrotate.d/mrs
+      content: |
+        /home/*/log/*.log {
+          daily
+          missingok
+          rotate 36
+          compress
+          notifempty
+          create 0640 1000 1000
+          sharedscripts
+        }
 
   - name: Execution du healthcheck
     include_tasks: check.yml
