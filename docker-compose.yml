@@ -2,6 +2,7 @@ version: '3.7'
 
 services:
   django:
+    image: betagouv/mrs:master
     logging:
       driver: journald
     environment:
