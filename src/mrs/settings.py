@@ -53,6 +53,18 @@ if 'HOST' in os.environ and os.getenv('HOST') not in ALLOWED_HOSTS:
 if not DEBUG and 'ALLOWED_HOSTS' not in os.environ:
     raise Exception('$ALLOWED_HOSTS is required if DEBUG is False')
 
+if os.getenv('PROTO') == 'https':
+    SSL_CONTEXT = True
+    SECURE_HSTS_SECONDS = 3600
+else:
+    SSL_CONTEXT = False
+    SECURE_HSTS_SECONDS = 0
+    CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_SECURE = SSL_CONTEXT
+SECURE_SSL_REDIRECT = SSL_CONTEXT
+SESSION_COOKIE_SECURE = SSL_CONTEXT
+CSP_UPGRADE_INSECURE_REQUESTS = SSL_CONTEXT
+
 MAINTENANCE_ENABLE = os.getenv('MAINTENANCE_ENABLE', False)
 
 LOGIN_REDIRECT_URL = '/admin/'
@@ -72,6 +84,7 @@ INSTALLED_APPS = [
     'denorm',
     'explorer',
     'captcha',
+    'security_headers',
 
     os.getenv('WEBPACK_LOADER', 'webpack_loader'),
     'django_humanize',
@@ -88,6 +101,9 @@ if not os.getenv('CI'):
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',
+    'security_headers.middleware.extra_security_headers_middleware',
+    'django_cookies_samesite.middleware.CookiesSameSite',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

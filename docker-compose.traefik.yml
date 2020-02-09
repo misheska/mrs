@@ -11,8 +11,6 @@ services:
     - "traefik.frontend.redirect.regex=^https?://${HOST}/(.*)"
     - "traefik.frontend.redirect.replacement=https://www.${HOST}/$${1}"
     - "traefik.frontend.redirect.permanent=true"
-    - "traefik.frontend.headers.contentSecurityPolicy=self stats.data.gouv.fr fonts.googleapis.com"
-    - "traefik.frontend.headers.stsSeconds=3600"
     networks:
     - default
     - web
