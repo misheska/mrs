@@ -16,13 +16,17 @@
     dest: '{{ home }}/.restic_password'
     mode: '0400'
 
-- name: Initializer le repo de backup
+- name: Initialiser le repo de backup
   register: restic_init
   changed_when: "'created restic repo' in restic_init['stdout']"
   shell: |
     export RESTIC_PASSWORD_FILE={{ home }}/.restic_password
     export RESTIC_REPOSITORY={{ lookup('env', 'RESTIC_REPOSITORY') or home + '/restic' }}
     test -d $RESTIC_REPOSITORY || restic init
+
+- name: Initialiser le dossier dump de postgres
+  when: postgresdump is defined
+  shell: mkdir -p {{ home }}/postgres && ln {{ postgresdump }} {{ home }}/postgres/dump
 
 - register: stat_backup
   stat:
