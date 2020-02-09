@@ -55,7 +55,7 @@ if not DEBUG and 'ALLOWED_HOSTS' not in os.environ:
 
 if os.getenv('PROTO') == 'https':
     SSL_CONTEXT = True
-    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_SECONDS = 15768000 # 6 months
 else:
     SSL_CONTEXT = False
     SECURE_HSTS_SECONDS = 0
